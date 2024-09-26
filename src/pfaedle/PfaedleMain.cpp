@@ -200,19 +200,21 @@ int main(int argc, char** argv) {
                                &box, maxSpeed, 0, cfg.verbosity);
     }
     OsmBuilder osmBuilder;
-    std::vector<pfaedle::osm::OsmReadOpts> opts;
     for (const auto& o : motCfgReader.getConfigs()) {
-      if (std::find_first_of(o.mots.begin(), o.mots.end(), cmdCfgMots.begin(),
+        std::vector<pfaedle::osm::OsmReadOpts> opts;
+        if (std::find_first_of(o.mots.begin(), o.mots.end(), cmdCfgMots.begin(),
                              cmdCfgMots.end()) != o.mots.end()) {
         opts.push_back(o.osmBuildOpts);
+        std::stringstream outPath;
+        outPath << cfg.writeOsm << getFileNameMotStr(o.mots) << ".osm";
+          try {
+              osmBuilder.filterWrite(cfg.osmPath, outPath.str() , opts, box);
+          } catch (const pfxml::parse_exc& ex) {
+              LOG(ERROR) << "Could not parse OSM data, reason was:";
+              std::cerr << ex.what() << std::endl;
+              exit(static_cast<int>(RetCode::OSM_PARSE_ERR));
+          }
       }
-    }
-    try {
-      osmBuilder.filterWrite(cfg.osmPath, cfg.writeOsm, opts, box);
-    } catch (const pfxml::parse_exc& ex) {
-      LOG(ERROR) << "Could not parse OSM data, reason was:";
-      std::cerr << ex.what() << std::endl;
-      exit(static_cast<int>(RetCode::OSM_PARSE_ERR));
     }
     exit(static_cast<int>(RetCode::SUCCESS));
   } else if (cfg.writeOverpass) {
@@ -281,8 +283,13 @@ int main(int argc, char** argv) {
       T_START(osmBuild);
 
       if (fStops.size())
-        osmBuilder.read(cfg.osmPath, motCfg.osmBuildOpts, &graph, box,
-                        cfg.gridSize, &restr);
+      {
+          std::stringstream inPath;
+          inPath << cfg.osmPath << getFileNameMotStr(motCfg.mots) << ".osm";
+          osmBuilder.read(inPath.str(), motCfg.osmBuildOpts, &graph, box,
+                          cfg.gridSize, &restr);
+      }
+
 
       tOsmBuild += T_STOP(osmBuild);
       graphDimensions[filePost].first = graph.getNds().size();
